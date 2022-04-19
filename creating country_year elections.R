@@ -19,6 +19,12 @@ PEI_election <- read_delim("Raw data/PEI election-level data (PEI_7.0) v2 09-05-
 iri_countries <- c("Kenya", "Chad", "Somaliland", "Somalia", "Sudan", "Nigeria", 
                    "Sierra Leone", "Congo", "Zimbabwe")
 
+# other country groups
+all_africa <- c()
+subsarahan_africa <- c()
+south_america <- c()
+all_developing_countries <- c()
+
 # select IRI countries and relevant indicators
 QED.mod <- QED.da %>% 
   select(COUNTRY, YEAR, EXELEC, LEGELEC, SELTRANS, SELRUNOFF, SF1, SF2, SF3, SA1, SA2, 
@@ -137,14 +143,18 @@ IAEP_QED_PEI <- IAEP_QED %>%
   full_join(PEI_election_mod, by = "country_year") %>% 
   mutate(cname = ifelse(is.na(cname), country, cname),
          year.x = ifelse(is.na(year.x), year.y, year.x),
-         electexec = ifelse(is.na(electexec) & office == 1, "Yes", "No"),
-         electleg = ifelse(is.na(electleg) & office == 0, "Yes", "No"),
+         electexec = case_when(!is.na(electexec) ~ electexec,
+                               is.na(electexec) & office == 1 ~ "Yes",
+                               is.na(electexec) & office == 0 ~ "No"),
+         electleg = case_when(!is.na(electleg) ~ electleg,
+                              is.na(electleg) & office == 0 ~ "Yes",
+                              is.na(electleg) & office == 1 ~ "No"),
          electboth = case_when(electleg == "Yes" & electexec == "Yes" ~ "Yes",
                                TRUE ~ "No")) %>% 
-  select(!c(election, year.y, country, office)) %>% 
+  select(!c(election, year.y, country, office, EXELEC, LEGELEC)) %>% 
   select(country_year, everything()) %>% 
   arrange(country_year)
-  
+
 #exporting IAEP_QED_PEI
 IAEP_QED_PEI %>% write_csv("CleanedMergedData/IAEP_QED_PEI_clean.csv")
 
