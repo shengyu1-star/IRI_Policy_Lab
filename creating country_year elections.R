@@ -25,7 +25,7 @@ PEI_election <- read_delim("Raw data/PEI election-level data (PEI_7.0) v2 09-05-
 
 # IRI countries
 iri_countries <- c("Kenya", "Chad", "Somalia", "Sudan", "Nigeria", 
-                   "Sierra Leone", "Congo", "Zimbabwe")
+                   "Sierra Leone", "Congo", "Zimbabwe", "Angola", "Libya")
 iri_countries_ios2 <- countrycode(iri_countries, origin = 'country.name', destination = 'iso2c')
 
 # other country groups
@@ -125,7 +125,7 @@ PEI_election_mod <- PEI_election %>%
   filter(country %in% iri_countries) %>% 
   select(election, year, country, office, PR, CL, gdp_pc_ppp, polity2, durable, development, 
          PEIIndexi, rating, lawsi, proceduresi, boundariesi, voteregi, partyregi, mediai, 
-         financei, votingi, counti, resultsi, EMBsi, Turnout, DatePrevious,) %>% 
+         financei, votingi, counti, resultsi, EMBsi, Turnout, DatePrevious) %>% 
   rename("FreedomHouse political rights scale (1-7)" = PR,
          "FreedomHouse civil liberities scale (1-7)" = CL,
          "polity combined score (-10-10)" = polity2,
@@ -163,9 +163,6 @@ IAEP_QED_PEI <- IAEP_QED %>%
   select(!c(election, year.y, country, office, EXELEC, LEGELEC)) %>% 
   select(country_year, everything()) %>% 
   arrange(country_year)
-
-#exporting IAEP_QED_PEI
-#IAEP_QED_PEI %>% write_csv("CleanedMergedData/IAEP_QED_PEI_clean.csv")
 
 ###-----------------------------####
 # Reconciling and consolidating variables in IAEP_QED_PEI
