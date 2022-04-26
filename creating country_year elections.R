@@ -257,3 +257,12 @@ IAEP_QED_PEI_FH_POL5_WB <- IAEP_QED_PEI_FH_POL5 %>%
 
 IAEP_QED_PEI_FH_POL5_WB %>% write_csv("CleanedMergedData/IAEP_QED_PEI_FH_POL5_WB_clean.csv")
 
+p1 <- ggplot(IAEP_QED_PEI_FH_POL5_WB, aes(polity2, elec_integrity)) + 
+  geom_count() + 
+  geom_smooth(method = "lm") + 
+  theme_light() + 
+  labs(x = "polity2 (-5=autocracy to 5=democracy)", 
+       y = "Electoral integrity (0=free/fair elections to 3=unfree/unfair elections)",
+       title = "Is a country's Polity score associated with its election integrity?")
+
+ggsave("polity vs election integrity.png", width = 10, height = 8)
