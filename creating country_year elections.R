@@ -5,8 +5,8 @@ library(democracyData)
 library(WDI)
 library(countrycode)
 
-#fh <- download_fh(verbose = FALSE) #uncomment these for first time running program
-#polity5 <- download_polity_annual(verbose = FALSE)
+fh <- download_fh(verbose = FALSE) #uncomment these for first time running program
+polity5 <- download_polity_annual(verbose = FALSE)
 
 setwd("~/Documents/School/Grad/Spring 2022/IRI Policy Lab/IRI_Policy_Lab")
 
@@ -25,7 +25,7 @@ PEI_election <- read_delim("Raw data/PEI election-level data (PEI_7.0) v2 09-05-
 
 # IRI countries
 iri_countries <- c("Kenya", "Chad", "Somalia", "Sudan", "Nigeria", 
-                   "Sierra Leone", "Congo", "Zimbabwe", "Angola", "Libya")
+                   "Sierra Leone", "Congo", "Zimbabwe", "Angola", "Libya", "Congo Kinshasa", "Congo (Kinshasa)")
 iri_countries_ios2 <- countrycode(iri_countries, origin = 'country.name', destination = 'iso2c')
 
 # other country groups
@@ -221,12 +221,16 @@ IAEP_QED_PEI_reconciled <- IAEP_QED_PEI %>%
 
 polity5_mod <- polity5 %>% 
   filter(polity_annual_country %in% iri_countries) %>% 
-  mutate(country_year = paste(polity_annual_country, year, sep = "-")) %>%
+  mutate(polity_annual_country = case_when(polity_annual_country == "Congo Kinshasa" ~ "Congo",
+                                           TRUE ~ polity_annual_country),
+         country_year = paste(polity_annual_country, year, sep = "-")) %>%
   select(country_year, fragment, polity2, durable, parreg, parcomp, regtrans)
 
 fh_mod <- fh %>% 
   filter(fh_country %in% iri_countries) %>% 
-  mutate(country_year = paste(fh_country, year, sep = "-")) %>% 
+  mutate(fh_country = case_when(fh_country == "Congo (Kinshasa)" ~ "Congo",
+                                TRUE ~ fh_country),
+         country_year = paste(fh_country, year, sep = "-")) %>% 
   select(country_year, status, fh_total)
 
 polity5_fh <- polity5_mod %>% 
@@ -247,7 +251,7 @@ iri_WDI <- iri_WDI %>%
          "Foreign direct investment, net inflows (BoP, current US$" = "BX.KLT.DINV.CD.WD",
          "Inflation, consumer prices (annual %)" = "FP.CPI.TOTL.ZG",
          "Gini index" = "SI.POV.GINI") %>%
-  mutate(country = ifelse(country == "Congo, Rep.", "Congo", country),
+  mutate(country = ifelse(country == "Congo, Dem. Rep.", "Congo", country),
          country_year = paste(country, year, sep = "-")) %>% 
   select(!c(iso2c, country, year))
 
