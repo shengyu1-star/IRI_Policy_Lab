@@ -190,6 +190,14 @@ afrobarometer <- read_excel("Raw data/afrobarometer country_years.xlsx")
 afrobarometer_mod <- afrobarometer %>% 
   mutate(country_year = paste(country, year, sep = "-"))
 
+PFI <- read_csv("Raw data/press_freedom_index.csv")
+pfi_mod <- PFI %>% 
+  filter(`Country Name` %in% iri_countries) %>% 
+  pivot_longer(`2001`:`2021`) %>% 
+  mutate(country_year = paste(`Country Name`, name, sep = "-")) %>% 
+  rename(`Press Freedom Index` = value) %>% 
+  select(country_year, `Press Freedom Index`)
+
 
 #### seeing country_year differences between all datasets ########
 qed_country_year <- QED.mod %>% 
@@ -260,6 +268,11 @@ afrobarometer_country_year <- afrobarometer_mod %>%
   distinct(country_year)  %>% 
   mutate(afrobarometer_country_year = country_year)
 
+pfi_country_year <- pfi_mod %>% 
+  select(country_year) %>% 
+  distinct(country_year)  %>% 
+  mutate(pfi_country_year = country_year)
+
 
 
 df_list <- list(qed_country_year, iaep_country_year, pei_country_year, nelda_country_year, 
@@ -268,11 +281,12 @@ df_list <- list(qed_country_year, iaep_country_year, pei_country_year, nelda_cou
 election_diff <- reduce(df_list, full_join) %>% 
   left_join(polity5_country_year) %>% left_join(fh_country_year) %>% left_join(wdi_country_year) %>% 
   left_join(scad_country_year) %>% left_join(ciri_country_year) %>% left_join(afrobarometer_country_year) %>% 
+  left_join(pfi_country_year) %>% 
   arrange(country_year) 
 
 election_diff_long <- election_diff %>% 
   select(!country_year) %>% 
-  pivot_longer(cols = qed_country_year:afrobarometer_country_year) %>% 
+  pivot_longer(cols = qed_country_year:pfi_country_year) %>% 
   drop_na() %>% 
   separate(value, into = c("country", "year"), sep = "-") %>% 
   mutate(dataset = str_sub(name, end = -14)) %>% 
