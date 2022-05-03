@@ -4,6 +4,7 @@ library(remotes)
 library(democracyData)
 library(WDI)
 library(countrycode)
+library(naniar)
 
 #fh <- download_fh(verbose = FALSE) #uncomment these for first time running program
 #polity5 <- download_polity_annual(verbose = FALSE)
@@ -36,6 +37,8 @@ NELDA <- read_excel("Raw data/NELDA.xls")
 #MGEP <- read_csv("Raw data/MGEP_S2016_Release.csv")
 #DECO <- read_csv("Raw data/DECO_v.1.0.csv")
 #SCAD <- read_csv("Raw data/SCAD2018Africa_Final.csv")
+CIRI <- read_excel("Raw data/CIRI Data 1981_2011 2014.04.14.xlsx")
+afrobarometer <- read_excel("Raw data/afrobarometer country_years.xlsx")
 
 ## Prepare all datasets for merge
 QED.mod <- QED.da %>% 
@@ -176,6 +179,19 @@ nelda_iri <- NELDA %>%
          nelda30, nelda32, nelda45, nelda46, nelda47, nelda48, nelda49) %>% 
   filter(!duplicated(country_year)) 
   
+ciri_mod <- CIRI %>% 
+  filter(CTRY %in% iri_countries) %>% 
+  mutate(country_year = paste(CTRY, YEAR, sep = "-")) %>% 
+  select(country_year, PHYSINT, NEW_EMPINX, ELECSD, WOPOL, INJUD) %>% 
+  replace_with_na_all(condition = ~.x == -77) %>% 
+  replace_with_na_all(condition = ~.x == -999) %>% 
+  rename_with(!country_year, .fn = ~ paste0("CIRI.", .x)) 
+
+afrobarometer_mod <- afrobarometer %>% 
+  mutate(country_year = paste(country, year, sep = "-"),
+         AFRO.datapresent = 1) %>% 
+  select(!c(country, year))
+
 
 # to incorporate ECAV would require a lot more work and it's not clear what use it would be, it's just more granualar
 # violence data
@@ -215,7 +231,9 @@ merged_datasets_raw <- all_iri_country_year_elections %>%
   left_join(polity5_mod) %>% 
   left_join(fh_mod) %>% 
   left_join(iri_WDI) %>% 
-  left_join(nelda_iri) 
+  left_join(nelda_iri) %>% 
+  left_join(ciri_mod) %>% 
+  left_join(afrobarometer_mod)
 
 merged_datasets_raw %>% write_csv("CleanedMergedData/merged_datasets_raw.csv")
   
@@ -247,7 +265,10 @@ merged_datasets_reconciled <- merged_datasets_raw %>%
                                     `PEI.PEI index of electoral integrity, imputed` > 60 ~ 0,
                                     `PEI.PEI index of electoral integrity, imputed` > 50 & `PEI.PEI index of electoral integrity, imputed` <= 60 ~ 1,
                                     `PEI.PEI index of electoral integrity, imputed` > 40 & `PEI.PEI index of electoral integrity, imputed` <= 50 ~ 2,
-                                    `PEI.PEI index of electoral integrity, imputed` <=40 ~ 3)) %>% 
+                                    `PEI.PEI index of electoral integrity, imputed` <=40 ~ 3,
+                                    `CIRI.ELECSD` == 0 ~ 3,
+                                    `CIRI.ELECSD` == 1 ~ 2,
+                                    `CIRI.ELECSD` == 2 ~ 0)) %>% 
   mutate(RECONCILED.pre_elec_legal_integrity = case_when(`QED.Pre-election legal structural enviornment` == "(3) High - major problems" ~ 3,
                                               `QED.Pre-election legal structural enviornment` == "(2) Moderate - moderate problems" ~ 2,
                                               `QED.Pre-election legal structural enviornment` == "(1) Low - minor problems only" ~ 1,
