@@ -18,8 +18,8 @@ iri_countries_ios2 <- countrycode(iri_countries, origin = 'country.name', destin
 
 # converts QED into csv, then load back in
 load("Raw data/31461-0002-Data.rda")
-da31461.0002 %>% write_csv("CleanedMergedData/QED.csv")
-QED.da <- read_csv("CleanedMergedData/QED.csv")
+da31461.0002 %>% write_csv("Raw data/QED.csv")
+QED.da <- read_csv("Raw data/QED.csv")
 
 IAEP <- read_csv("Raw data/IAEPv2_0_2015labels.csv")
 
@@ -33,8 +33,8 @@ iri_WDI <- WDI(country = iri_countries_ios2, indicator = c("NY.GDP.PCAP.KD",
 
 NELDA <- read_excel("Raw data/NELDA.xls")
 #ECAV <- read_excel("Raw data/ECAV datatset_Version 1.2.xls") #see ecav note below
-MGEP <- read_csv("Raw data/MGEP_S2016_Release.csv")
-DECO <- read_csv("Raw data/DECO_v.1.0.csv")
+#MGEP <- read_csv("Raw data/MGEP_S2016_Release.csv")
+#DECO <- read_csv("Raw data/DECO_v.1.0.csv")
 #SCAD <- read_csv("Raw data/SCAD2018Africa_Final.csv")
 
 ## Prepare all datasets for merge
@@ -92,7 +92,8 @@ IAEP_mod <- IAEP %>%
          "IAEP.Boycotted by major party?" = electboy,
          "IAEP.Did election cause protest/violence?" = electprot,
          "IAEP.% of pop voting in leg elec" = legelig,
-         "IAEP.% of pop voting in exec elec" = execelig) %>% 
+         "IAEP.% of pop voting in exec elec" = execelig,
+         "IAEP.protestpart" = protestpart) %>% 
   filter(cname %in% iri_countries, 
          election == "Yes") %>% 
   mutate(country_year = paste(cname, year, sep = "-")) 
@@ -172,7 +173,9 @@ nelda_iri <- NELDA %>%
   filter(country %in% iri_countries) %>% 
   mutate(country_year = paste(country, year, sep = "-")) %>% 
   select(country_year, nelda1, nelda3, nelda4, nelda5, nelda11, nelda17, nelda18, nelda29,
-         nelda30, nelda32, nelda45, nelda46, nelda47, nelda48, nelda49)
+         nelda30, nelda32, nelda45, nelda46, nelda47, nelda48, nelda49) %>% 
+  filter(!duplicated(country_year)) 
+  
 
 # to incorporate ECAV would require a lot more work and it's not clear what use it would be, it's just more granualar
 # violence data
@@ -181,12 +184,13 @@ nelda_iri <- NELDA %>%
 #   mutate(year = substr(Electiondate, 1, 4)) %>% 
 #   mutate(country_year = paste(country, year, sep = "-"))
 
-mgep_mod <- MGEP %>% 
-  filter(election == 1) %>% 
-  filter(targetstate %in% iri_countries) %>% 
-  mutate(country_year = paste(targetstate, year, sep = "-")) %>% 
-  select(country_year, part, viop, active) %>% 
-  rename_with(!country_year, .fn = ~ paste0("MGEP.", .x))
+# similar to ecav, skipping mgep because it's a lot of work and only gets more geolocated violence data
+# mgep_mod <- MGEP %>% 
+#   filter(election == 1) %>% 
+#   filter(targetstate %in% iri_countries) %>% 
+#   mutate(country_year = paste(targetstate, year, sep = "-")) %>% 
+#   select(country_year, part, viop, active) %>% 
+#   rename_with(!country_year, .fn = ~ paste0("MGEP.", .x)) 
 
 # similar to ecav, skipping scav because it's a lot of work and only gets more geolocated violence data
 # deco_mod <- DECO %>% 
@@ -205,15 +209,62 @@ mgep_mod <- MGEP %>%
 ## Merge all datasets
 all_iri_country_year_elections <- read_csv("CleanedMergedData/all_iri_country_year_elections.csv")
 
-merged_datasets <- all_iri_country_year_elections %>% 
+merged_datasets_raw <- all_iri_country_year_elections %>% 
   left_join(IAEP_QED) %>% 
   left_join(PEI_election_mod) %>% 
   left_join(polity5_mod) %>% 
   left_join(fh_mod) %>% 
   left_join(iri_WDI) %>% 
-  left_join(nelda_iri) %>% 
-  left_join(mgep_mod) 
+  left_join(nelda_iri) 
+
+merged_datasets_raw %>% write_csv("CleanedMergedData/merged_datasets_raw.csv")
   
 
+merged_datasets_reconciled <- merged_datasets_raw %>% 
+  mutate(RECONCILED.post_elec_violence = case_when(`PEI.Voting results/reactions index (protests/disputes) (0-100), imputed` > 0 & `PEI.Voting results/reactions index (protests/disputes) (0-100), imputed` <= 25 ~ 3,
+                                        `IAEP.protestpart` == "Widespread participation" ~ 3,
+                                        `QED.Election day violence/unrest` == "(3) High - major problems" ~ 3,
+                                        `PEI.Voting results/reactions index (protests/disputes) (0-100), imputed` > 25 & `PEI.Voting results/reactions index (protests/disputes) (0-100), imputed` <= 50 ~ 2,
+                                        `IAEP.protestpart` == "Moderate participation" ~ 2,
+                                        `QED.Election day violence/unrest` == "(2) Moderate - moderate problems" ~ 2,
+                                        `PEI.Voting results/reactions index (protests/disputes) (0-100), imputed` > 50 & `PEI.Voting results/reactions index (protests/disputes) (0-100), imputed` <= 75 ~ 1,
+                                        `IAEP.protestpart` == "Low participation" ~ 1,
+                                        `QED.Election day violence/unrest` == "(1) Low - minor problems only" ~ 1,
+                                        `PEI.Voting results/reactions index (protests/disputes) (0-100), imputed` > 75 & `PEI.Voting results/reactions index (protests/disputes) (0-100), imputed` <= 100 ~ 0,
+                                        `IAEP.Did election cause protest/violence?` == "No" ~ 0,
+                                        `QED.Election day violence/unrest` == "(0) Good - no problems" ~ 0,
+                                        TRUE ~ NA_real_),
+         `IAEP.% of pop voting in leg elec` = as.numeric(ifelse(`IAEP.% of pop voting in leg elec` == ".a" | `IAEP.% of pop voting in leg elec` == ".e", NA_real_, `IAEP.% of pop voting in leg elec`)),
+         `IAEP.% of pop voting in exec elec` = as.numeric(ifelse(`IAEP.% of pop voting in exec elec` == ".a" | `IAEP.% of pop voting in exec elec` == ".e", NA_real_, `IAEP.% of pop voting in exec elec`))) %>% 
+  rowwise() %>% 
+  mutate(RECONCILED.turnout = mean(c(PEI.turnout, 
+                          `IAEP.% of pop voting in leg elec`, 
+                          `IAEP.% of pop voting in exec elec`), na.rm = TRUE)) %>% 
+  mutate(RECONCILED.elec_integrity = case_when(`QED.Extent of election problems` == "(3) High - major problems" ~ 3,
+                                    `QED.Extent of election problems` == "(2) Moderate - moderate problems" ~ 2,
+                                    `QED.Extent of election problems` == "(1) Low - minor problems only" ~ 1,
+                                    `QED.Extent of election problems` == "(0) Good - no problems" ~ 0,
+                                    `PEI.PEI index of electoral integrity, imputed` > 60 ~ 0,
+                                    `PEI.PEI index of electoral integrity, imputed` > 50 & `PEI.PEI index of electoral integrity, imputed` <= 60 ~ 1,
+                                    `PEI.PEI index of electoral integrity, imputed` > 40 & `PEI.PEI index of electoral integrity, imputed` <= 50 ~ 2,
+                                    `PEI.PEI index of electoral integrity, imputed` <=40 ~ 3)) %>% 
+  mutate(RECONCILED.pre_elec_legal_integrity = case_when(`QED.Pre-election legal structural enviornment` == "(3) High - major problems" ~ 3,
+                                              `QED.Pre-election legal structural enviornment` == "(2) Moderate - moderate problems" ~ 2,
+                                              `QED.Pre-election legal structural enviornment` == "(1) Low - minor problems only" ~ 1,
+                                              `QED.Pre-election legal structural enviornment` == "(0) Good - no problems" ~ 0,
+                                              `PEI.Electoral laws index (0-100), imputed` > 60 ~ 0,
+                                              `PEI.Electoral laws index (0-100), imputed` > 50 & `PEI.Electoral laws index (0-100), imputed` <= 60 ~ 1,
+                                              `PEI.Electoral laws index (0-100), imputed` > 40 & `PEI.Electoral laws index (0-100), imputed` <= 50 ~ 2,
+                                              `PEI.Electoral laws index (0-100), imputed` <=40 ~ 3)) %>% 
+  mutate(RECONCILED.elec_explicit_cheating = case_when(`QED.Election day explicit cheating` == "(3) High - major problems" ~ 3,
+                                            `QED.Election day explicit cheating` == "(2) Moderate - moderate problems" ~ 2,
+                                            `QED.Election day explicit cheating` == "(1) Low - minor problems only" ~ 1,
+                                            `QED.Election day explicit cheating` == "(0) Good - no problems" ~ 0,
+                                            `PEI.Vote count index (0-100), imputed` > 60 ~ 0,
+                                            `PEI.Vote count index (0-100), imputed` > 50 & `PEI.Vote count index (0-100), imputed` <= 60 ~ 1,
+                                            `PEI.Vote count index (0-100), imputed` > 40 & `PEI.Vote count index (0-100), imputed` <= 50 ~ 2,
+                                            `PEI.Vote count index (0-100), imputed` <=40 ~ 3)) %>% 
+  relocate(RECONCILED.turnout:RECONCILED.elec_explicit_cheating, .after = country_year)
 
+merged_datasets_reconciled %>% write_csv("CleanedMergedData/merged_datasets_reconciled.csv")
 
