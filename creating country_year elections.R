@@ -285,7 +285,7 @@ merged_datasets_reconciled <- merged_datasets_raw %>%
                                             `PEI.Vote count index (0-100), imputed` > 50 & `PEI.Vote count index (0-100), imputed` <= 60 ~ 1,
                                             `PEI.Vote count index (0-100), imputed` > 40 & `PEI.Vote count index (0-100), imputed` <= 50 ~ 2,
                                             `PEI.Vote count index (0-100), imputed` <=40 ~ 3)) %>% 
-  relocate(RECONCILED.turnout:RECONCILED.elec_explicit_cheating, .after = country_year)
+  relocate(RECONCILED.post_elec_violence:RECONCILED.elec_explicit_cheating, .after = country_year)
 
 merged_datasets_reconciled %>% write_csv("CleanedMergedData/merged_datasets_reconciled.csv")
 
