@@ -18,6 +18,16 @@ iri_countries <- c("Kenya", "Chad", "Somalia", "Sudan", "Nigeria",
                    "Congo Kinshasa", "Congo (Kinshasa)", "Congo, Dem. Rep.")
 iri_countries_ios2 <- countrycode(iri_countries, origin = 'country.name', destination = 'iso2c')
 
+all_africa_countries <- c("Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi", "Cameroon", "Cape Verde",
+                          "Central African Republic", "Chad", "Comoros", "Congo-Brazzaville", "Congo-Kinshasa", 
+                          "Cote d'Ivoire", "Djibouti", "Egypt", "Equatorial Guinea", "Eritrea", "Ethiopia", "Gabon", 
+                          "Gambia", "Ghana", "Guinea", "Guinea Bissau", "Kenya", "Lesotho", "Liberia", "Libya", "Madagascar", 
+                          "Malawi", "Mali", "Mauritania", "Mauritius", "Morocco", "Mozambique", "Namibia", "Niger", "Nigeria",
+                          "Rwanda", "Senegal", "Seychelles", "Sierra Leone", "Somalia", "South Africa", "South Sudan", 
+                          "Sudan", "Swaziland", "São Tomé and Príncipe", "Tanzania", "Togo", "Tunisia", "Uganda", 
+                          "Western Sahara", "Zambia", "Zimbabwe")
+all_africa_countries_ios2 <- countrycode(all_africa_countries, origin = 'country.name', destination = 'iso2c')
+
 # converts QED into csv, then load back in
 load("Raw data/31461-0002-Data.rda")
 da31461.0002 %>% write_csv("Raw data/QED.csv")
@@ -32,6 +42,10 @@ iri_WDI <- WDI(country = iri_countries_ios2, indicator = c("NY.GDP.PCAP.KD",
                                                            "BX.KLT.DINV.CD.WD",
                                                            "FP.CPI.TOTL.ZG",
                                                            "SI.POV.GINI"))
+africa_WDI <- WDI(country = all_africa_countries_ios2, indicator = c("NY.GDP.PCAP.KD", 
+                                                              "BX.KLT.DINV.CD.WD",
+                                                              "FP.CPI.TOTL.ZG",
+                                                              "SI.POV.GINI"))
 
 NELDA <- read_excel("Raw data/NELDA.xls")
 #ECAV <- read_excel("Raw data/ECAV datatset_Version 1.2.xls") #see ecav note below
@@ -39,7 +53,7 @@ NELDA <- read_excel("Raw data/NELDA.xls")
 #DECO <- read_csv("Raw data/DECO_v.1.0.csv")
 #SCAD <- read_csv("Raw data/SCAD2018Africa_Final.csv")
 CIRI <- read_excel("Raw data/CIRI Data 1981_2011 2014.04.14.xlsx")
-afrobarometer <- read_excel("Raw data/afrobarometer country_years.xlsx")
+afrobarometer <- read_csv("Raw data/afrobarometer_free_and_fair.csv")
 PFI <- read_csv("Raw data/press_freedom_index.csv")
 
 ## Prepare all datasets for merge
@@ -68,13 +82,14 @@ QED.mod <- QED.da %>%
          "QED.Election day explicit cheating" = SR21CHEAT,
          "QED.Election day violence/unrest" = SR23VIOL,
          "QED.Election day administrative capacity" = SR22CAP) %>% 
-  filter(COUNTRY %in% iri_countries) %>% 
   mutate(country_year = paste(COUNTRY, YEAR, sep = "-"),
          dup = duplicated(country_year, fromLast = TRUE),
          LEGELEC = ifelse(dup | LEGELEC == "1", 1, 0),
          EXELEC = ifelse(dup | EXELEC == "1", 1, 0)) %>% 
   filter(!duplicated(country_year)) %>% 
-  select(!dup)
+  select(!dup, "QED.Freedom of speech", "QED.Freedom of association", "QED.Freedom to change government",
+         "QED.Runoff election") %>% 
+  rename(`country` = COUNTRY)
 
 IAEP_mod <- IAEP %>% 
   select(cname, year, election, electexec, electleg, electboth, amyear, constage, govstruct, 
@@ -99,17 +114,16 @@ IAEP_mod <- IAEP %>%
          "IAEP.% of pop voting in leg elec" = legelig,
          "IAEP.% of pop voting in exec elec" = execelig,
          "IAEP.protestpart" = protestpart) %>% 
-  filter(cname %in% iri_countries, 
-         election == "Yes") %>% 
-  mutate(country_year = paste(cname, year, sep = "-")) 
+  mutate(country_year = paste(cname, year, sep = "-")) %>% 
+  filter(election == "Yes") %>% 
+  rename(country = cname)
 
-IAEP_QED <- IAEP_mod %>% 
+IAEP.QED <- IAEP_mod %>% 
   full_join(QED.mod, by = "country_year") %>% 
-  mutate(cname = ifelse(is.na(cname), COUNTRY, cname),
-         year = ifelse(is.na(year), YEAR, year),
+  mutate(year = ifelse(is.na(year), YEAR, year),
          electexec = ifelse(is.na(electexec), EXELEC, electexec),
          electleg = ifelse(is.na(electleg), LEGELEC, electleg)) %>% 
-  select(!c(COUNTRY, YEAR, election, cname, year)) %>% 
+  select(!c(YEAR, country.x, country.y, election, year)) %>% 
   mutate(electexec = case_when(electexec == 0 ~ "No",
                                electexec == 1 ~ "Yes",
                                electexec == "Yes" ~ "Yes",
@@ -123,7 +137,6 @@ IAEP_QED <- IAEP_mod %>%
 
 
 PEI_election_mod <- PEI_election %>% 
-  filter(country %in% iri_countries) %>% 
   select(election, year, country, office, durable, development, 
          PEIIndexi, rating, lawsi, proceduresi, boundariesi, voteregi, partyregi, mediai, 
          financei, votingi, counti, resultsi, EMBsi, Turnout, DatePrevious) %>% 
@@ -144,10 +157,9 @@ PEI_election_mod <- PEI_election %>%
          "PEI.Electoral authorities index (0-100), imputed" = EMBsi,
          "PEI.turnout" = Turnout) %>% 
   mutate(country_year = paste(country, year, sep = "-")) %>% 
-  select(!c(election, year, country, office, DatePrevious))
+  select(!c(election, country, year, office, DatePrevious))
 
 polity5_mod <- polity5 %>% 
-  filter(polity_annual_country %in% iri_countries) %>% 
   mutate(polity_annual_country = case_when(polity_annual_country == "Congo Kinshasa" ~ "Congo",
                                            TRUE ~ polity_annual_country),
          country_year = paste(polity_annual_country, year, sep = "-")) %>%
@@ -155,13 +167,11 @@ polity5_mod <- polity5 %>%
   rename_with(!country_year, .fn = ~ paste0("POLITY5.", .x))
 
 fh_mod <- fh %>% 
-  filter(fh_country %in% iri_countries) %>% 
   mutate(fh_country = case_when(fh_country == "Congo (Kinshasa)" ~ "Congo",
                                 TRUE ~ fh_country),
          country_year = paste(fh_country, year, sep = "-")) %>% 
   select(country_year, status, fh_total) %>% 
   rename_with(!country_year, .fn = ~ paste0("FH.", .x))
-
 
 iri_WDI <- iri_WDI %>% 
   rename("GDP per capita (constant 2015 US$)" = "NY.GDP.PCAP.KD",
@@ -173,16 +183,25 @@ iri_WDI <- iri_WDI %>%
   select(!c(iso2c, country, year)) %>% 
   rename_with(!country_year, .fn = ~ paste0("WB.", .x))
 
+africa_WDI <- africa_WDI %>% 
+  rename("GDP per capita (constant 2015 US$)" = "NY.GDP.PCAP.KD",
+         "Foreign direct investment, net inflows (BoP, current US$" = "BX.KLT.DINV.CD.WD",
+         "Inflation, consumer prices (annual %)" = "FP.CPI.TOTL.ZG",
+         "Gini index" = "SI.POV.GINI") %>%
+  mutate(country = ifelse(country == "Congo, Dem. Rep.", "Congo", country),
+         country_year = paste(country, year, sep = "-")) %>% 
+  select(!c(iso2c, country, year)) %>% 
+  rename_with(!country_year, .fn = ~ paste0("WB.", .x))
 
-nelda_iri <- NELDA %>% 
-  filter(country %in% iri_countries) %>% 
+
+nelda_mod <- NELDA %>% 
   mutate(country_year = paste(country, year, sep = "-")) %>% 
   select(country_year, nelda1, nelda3, nelda4, nelda5, nelda11, nelda17, nelda18, nelda29,
          nelda30, nelda32, nelda45, nelda46, nelda47, nelda48, nelda49) %>% 
   filter(!duplicated(country_year)) 
-  
+
+
 ciri_mod <- CIRI %>% 
-  filter(CTRY %in% iri_countries) %>% 
   mutate(country_year = paste(CTRY, YEAR, sep = "-")) %>% 
   select(country_year, PHYSINT, NEW_EMPINX, ELECSD, WOPOL, INJUD) %>% 
   replace_with_na_all(condition = ~.x == -77) %>% 
@@ -190,17 +209,27 @@ ciri_mod <- CIRI %>%
   rename_with(!country_year, .fn = ~ paste0("CIRI.", .x)) 
 
 afrobarometer_mod <- afrobarometer %>% 
-  mutate(country_year = paste(country, year, sep = "-"),
-         AFRO.datapresent = 1) %>% 
-  select(!c(country, year))
+  mutate(country_year = paste(Country, Year, sep = "-")) %>% 
+  drop_na(`Not free and fair`) %>% 
+  mutate(across("Not free and fair":"Completely free and fair", 
+                ~ as.numeric(as.character(str_sub(.x, end = -2)))/100)) 
+
+write_csv(afrobarometer_mod, "Raw Data/afrobarometer_mod.csv")
+#need to make afrobarameter for all african countries, maybe...
+afrobarometer_mod <- read_csv("Raw Data/afrobarometer_mod_complete.csv")
+
+afrobarometer_mod <- afrobarometer_mod %>% 
+  select(country_year, "Election Integrity (10=free/fair, 0=unfree/unfair)") %>% 
+  rename("AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)" =  "Election Integrity (10=free/fair, 0=unfree/unfair)")
 
 pfi_mod <- PFI %>% 
-  filter(`Country Name` %in% iri_countries) %>% 
   pivot_longer(`2001`:`2021`) %>% 
   mutate(country_year = paste(`Country Name`, name, sep = "-")) %>% 
   rename(`Press Freedom Index` = value) %>% 
-  select(country_year, `Press Freedom Index`)
+  select(country_year, `Press Freedom Index`) 
          
+
+  
 
 # to incorporate ECAV would require a lot more work and it's not clear what use it would be, it's just more granualar
 # violence data
@@ -230,6 +259,19 @@ pfi_mod <- PFI %>%
 #   filter(countryname %in% iri_countries) %>% 
 #   filter(issue1 == 1) %>% 
 #   mutate(country_year = paste(countryname, eyr, sep = "-"))
+
+# New Africa country-election merge:
+
+country_elec_list <- list(IAEP.QED, PEI_election_mod, nelda_mod, afrobarometer_mod)
+
+merged_datasets2 <- reduce(country_elec_list, full_join) %>% 
+  mutate(country = str_sub(country_year, end = -6)) %>% 
+  filter(country %in% all_africa_countries) %>% 
+  left_join(polity5_mod) %>% left_join(fh_mod) %>% left_join(africa_WDI) %>% left_join(ciri_mod) %>% left_join(pfi_mod) %>% 
+  relocate(country_year) %>% 
+  arrange(country_year)
+
+write_csv(merged_datasets2, "merged_datasets2.csv")
 
 ## Merge all datasets
 all_iri_country_year_elections <- read_csv("CleanedMergedData/all_iri_country_year_elections.csv")
@@ -316,5 +358,9 @@ perc_complete <- perc_complete %>%
   mutate(`%complete` = 1 - value)
 
 perc_complete %>% write_csv("CleanedMergedData/perc_complete.csv")
+
+
+########### Try #3 to fix this stupid thing
+
 
 
