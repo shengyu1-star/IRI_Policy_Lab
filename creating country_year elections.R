@@ -41,11 +41,13 @@ PEI_election <- read_delim("Raw data/PEI election-level data (PEI_7.0) v2 09-05-
 iri_WDI <- WDI(country = iri_countries_ios2, indicator = c("NY.GDP.PCAP.KD", 
                                                            "BX.KLT.DINV.CD.WD",
                                                            "FP.CPI.TOTL.ZG",
-                                                           "SI.POV.GINI"))
+                                                           "SI.POV.GINI",
+                                                           "SP.URB.TOTL.IN.ZS"))
 africa_WDI <- WDI(country = all_africa_countries_ios2, indicator = c("NY.GDP.PCAP.KD", 
                                                               "BX.KLT.DINV.CD.WD",
                                                               "FP.CPI.TOTL.ZG",
-                                                              "SI.POV.GINI"))
+                                                              "SI.POV.GINI",
+                                                              "SP.URB.TOTL.IN.ZS"))
 
 NELDA <- read_excel("Raw data/NELDA.xls")
 #ECAV <- read_excel("Raw data/ECAV datatset_Version 1.2.xls") #see ecav note below
@@ -177,7 +179,8 @@ iri_WDI <- iri_WDI %>%
   rename("GDP per capita (constant 2015 US$)" = "NY.GDP.PCAP.KD",
          "Foreign direct investment, net inflows (BoP, current US$" = "BX.KLT.DINV.CD.WD",
          "Inflation, consumer prices (annual %)" = "FP.CPI.TOTL.ZG",
-         "Gini index" = "SI.POV.GINI") %>%
+         "Gini index" = "SI.POV.GINI",
+         "%pop living in urban" = "SP.URB.TOTL.IN.ZS") %>%
   mutate(country = ifelse(country == "Congo, Dem. Rep.", "Congo", country),
          country_year = paste(country, year, sep = "-")) %>% 
   select(!c(iso2c, country, year)) %>% 
@@ -187,7 +190,8 @@ africa_WDI <- africa_WDI %>%
   rename("GDP per capita (constant 2015 US$)" = "NY.GDP.PCAP.KD",
          "Foreign direct investment, net inflows (BoP, current US$" = "BX.KLT.DINV.CD.WD",
          "Inflation, consumer prices (annual %)" = "FP.CPI.TOTL.ZG",
-         "Gini index" = "SI.POV.GINI") %>%
+         "Gini index" = "SI.POV.GINI",
+         "%pop living in urban" = "SP.URB.TOTL.IN.ZS") %>%
   mutate(country = ifelse(country == "Congo, Dem. Rep.", "Congo", country),
          country_year = paste(country, year, sep = "-")) %>% 
   select(!c(iso2c, country, year)) %>% 
