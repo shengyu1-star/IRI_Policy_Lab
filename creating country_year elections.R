@@ -289,6 +289,7 @@ vDEM_mod <- vDEM %>%
   filter(country_name %in% all_africa_countries) %>% 
   mutate(country_name = case_when(country_name == "The Gambia" ~ "Gambia",
                                   country_name == "Ivory Coast" ~ "Cote d'Ivoire",
+                                  country_name == "Eswatini" ~ "Swaziland",
                                   TRUE ~ country_name)) %>% 
   filter(year > 2000) %>% 
   filter(v2xel_elecparl == 1 | v2xel_elecpres == 1) %>% 
