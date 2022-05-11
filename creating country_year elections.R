@@ -284,7 +284,7 @@ pfi_mod <- PFI %>%
 # v2eltrnout
 # took out: v2elembcap, v2elembcap_osp, v2elpeace_ord, v2elpeace
 vDEM_mod <- vDEM %>% 
-  select(country_name, year, v2elfrfair_osp, v2eltrnout, v2elvaptrn, v2elembcap_ord, 
+  select(country_name, year, v2elfrfair_osp, v2eltrnout, v2elvaptrn, v2elembcap_osp, 
          e_peaveduc,v2xel_elecparl, v2xel_elecpres, v2elpeace_osp, v2elintmon) %>% 
   filter(country_name %in% all_africa_countries) %>% 
   mutate(country_name = case_when(country_name == "The Gambia" ~ "Gambia",
@@ -298,7 +298,7 @@ vDEM_mod <- vDEM %>%
   rename(VDEM.elction_free_fair = v2elfrfair_osp,
          VDEM.turnout = v2eltrnout,
          VDEM.VAP_turnout = v2elvaptrn,
-         VDEM.EMB_capacity_ord = v2elembcap_ord,
+         VDEM.EMB_capacity_osp = v2elembcap_osp,
          VDEM.yrs_education = e_peaveduc,
          VDEM.elec_viol = v2elpeace_osp, 
          VDEM.international_monitors_present = v2elintmon) %>% 
@@ -351,7 +351,7 @@ write_csv(merged_datasets2, "merged_datasets2.csv")
 
 merged_datasets3 <- merged_datasets2 %>% 
   select(country_year, electexec, electleg, electboth, v2xel_elecparl, v2xel_elecpres, `AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)`,
-         `PEI.Rating of electoral integrity (1-10)`, VDEM.elction_free_fair, `PEI.Electoral authorities index (0-100), imputed`, VDEM.EMB_capacity_ord,
+         `PEI.Rating of electoral integrity (1-10)`, VDEM.elction_free_fair, `PEI.Electoral authorities index (0-100), imputed`, VDEM.EMB_capacity_osp,
          `PEI.Voting results/reactions index (protests/disputes) (0-100), imputed`,
          `PEI.turnout`, VDEM.turnout, VDEM.VAP_turnout, nelda17, nelda18, nelda11, nelda45, nelda46, nelda3:nelda5, 
          nelda29:nelda30, POLITY5.fragment:POLITY5.durable, POLITY5.parcomp, FH.fh_total, 
