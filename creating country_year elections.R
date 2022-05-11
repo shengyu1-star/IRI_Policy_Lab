@@ -5,6 +5,8 @@ library(democracyData)
 library(WDI)
 library(countrycode)
 library(naniar)
+library(readxl)
+library(acled.api) # my key: hIZ0Z3n5e4IenWorw5we
 
 #fh <- download_fh(verbose = FALSE) #uncomment these for first time running program
 #polity5 <- download_polity_annual(verbose = FALSE)
@@ -19,14 +21,27 @@ iri_countries <- c("Kenya", "Chad", "Somalia", "Sudan", "Nigeria",
 iri_countries_ios2 <- countrycode(iri_countries, origin = 'country.name', destination = 'iso2c')
 
 all_africa_countries <- c("Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi", "Cameroon", "Cape Verde",
-                          "Central African Republic", "Chad", "Comoros", "Congo-Brazzaville", "Congo-Kinshasa", 
-                          "Cote d'Ivoire", "Djibouti", "Egypt", "Equatorial Guinea", "Eritrea", "Ethiopia", "Gabon", 
-                          "Gambia", "Ghana", "Guinea", "Guinea Bissau", "Kenya", "Lesotho", "Liberia", "Libya", "Madagascar", 
+                          "Central African Republic", "Chad", "Comoros", "Republic of the Congo", "Congo-Brazzaville", "Congo-Kinshasa", 
+                          "Cote d'Ivoire", "Ivory Coast", "Djibouti", "Democratic Republic of the Congo", "Egypt", "Equatorial Guinea", "Eritrea", "Ethiopia", "Gabon", 
+                          "Eswatini", "Gambia", "Ghana", "Guinea", "Guinea Bissau", "Guinea-Bissau", "Kenya", "Lesotho", "Liberia", "Libya", "Madagascar", 
                           "Malawi", "Mali", "Mauritania", "Mauritius", "Morocco", "Mozambique", "Namibia", "Niger", "Nigeria",
                           "Rwanda", "Senegal", "Seychelles", "Sierra Leone", "Somalia", "South Africa", "South Sudan", 
-                          "Sudan", "Swaziland", "São Tomé and Príncipe", "Tanzania", "Togo", "Tunisia", "Uganda", 
+                          "Sudan", "Swaziland", "São Tomé and Príncipe", "Tanzania", "The Gambia", "Togo", "Tunisia", "Uganda", 
                           "Western Sahara", "Zambia", "Zimbabwe")
 all_africa_countries_ios2 <- countrycode(all_africa_countries, origin = 'country.name', destination = 'iso2c')
+
+## ACLED mess
+Sys.setenv(EMAIL_ADDRESS="smcsweeney@uchicago.edu") 
+Sys.setenv(ACCESS_KEY="hIZ0Z3n5e4IenWorw5we")
+acled_raw <- acled.api(
+  email.address = Sys.getenv("EMAIL_ADDRESS"),
+  access.key = Sys.getenv("ACCESS_KEY"),
+  region = 1,
+  start.date = "2019-01-01",
+  end.date = "2019-11-31",
+  add.variables = c("data_id", "event_date", "event_type"))
+
+
 
 # converts QED into csv, then load back in
 load("Raw data/31461-0002-Data.rda")
@@ -47,16 +62,32 @@ africa_WDI <- WDI(country = all_africa_countries_ios2, indicator = c("NY.GDP.PCA
                                                               "BX.KLT.DINV.CD.WD",
                                                               "FP.CPI.TOTL.ZG",
                                                               "SI.POV.GINI",
-                                                              "SP.URB.TOTL.IN.ZS"))
+                                                              "SP.URB.TOTL.IN.ZS", 
+                                                              "SE.ADT.LITR.ZS"))
 
 NELDA <- read_excel("Raw data/NELDA.xls")
-#ECAV <- read_excel("Raw data/ECAV datatset_Version 1.2.xls") #see ecav note below
+ECAV <- read_excel("Raw data/ECAV datatset_Version 1.2.xls") #see ecav note below
 #MGEP <- read_csv("Raw data/MGEP_S2016_Release.csv")
 #DECO <- read_csv("Raw data/DECO_v.1.0.csv")
 #SCAD <- read_csv("Raw data/SCAD2018Africa_Final.csv")
 CIRI <- read_excel("Raw data/CIRI Data 1981_2011 2014.04.14.xlsx")
 afrobarometer <- read_csv("Raw data/afrobarometer_free_and_fair.csv")
 PFI <- read_csv("Raw data/press_freedom_index.csv")
+vDEM <- read_csv("Raw data/V-Dem-CY-Full+Others-v12.csv")
+
+#ECAV starting point
+ECAV_specific_dates <- ECAV %>% 
+  filter(country %in% all_africa_countries) %>% 
+  select(country, Electiondate) %>% 
+  mutate(country_elc = paste(country, Electiondate, sep = "-")) %>% 
+  distinct(country_elc, .keep_all = TRUE) %>% 
+  select(!country_elc) %>% 
+  mutate(Electiondate = as.character(Electiondate),
+         year = as.numeric(as.character(str_sub(Electiondate, 1, 4)))) %>% 
+  filter(year > 2000)
+
+
+write_csv(ECAV_specific_dates, "ECAV_specific_dates.csv")
 
 ## Prepare all datasets for merge
 QED.mod <- QED.da %>% 
@@ -191,7 +222,8 @@ africa_WDI <- africa_WDI %>%
          "Foreign direct investment, net inflows (BoP, current US$" = "BX.KLT.DINV.CD.WD",
          "Inflation, consumer prices (annual %)" = "FP.CPI.TOTL.ZG",
          "Gini index" = "SI.POV.GINI",
-         "%pop living in urban" = "SP.URB.TOTL.IN.ZS") %>%
+         "%pop living in urban" = "SP.URB.TOTL.IN.ZS",
+         "adult literacy rate" = "SE.ADT.LITR.ZS") %>%
   mutate(country = ifelse(country == "Congo, Dem. Rep.", "Congo", country),
          country_year = paste(country, year, sep = "-")) %>% 
   select(!c(iso2c, country, year)) %>% 
@@ -224,7 +256,24 @@ afrobarometer_mod <- read_csv("Raw Data/afrobarometer_mod_complete.csv")
 
 afrobarometer_mod <- afrobarometer_mod %>% 
   select(country_year, "Election Integrity (10=free/fair, 0=unfree/unfair)") %>% 
-  rename("AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)" =  "Election Integrity (10=free/fair, 0=unfree/unfair)")
+  rename("AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)" =  "Election Integrity (10=free/fair, 0=unfree/unfair)") 
+
+afrobarometer_mod_imputed <- afrobarometer_mod %>% 
+  mutate(country = str_sub(country_year, 1, -6),
+         year = as.numeric(as.character(str_sub(country_year, -4, -1)))) %>% 
+  group_by(country_year) %>% 
+  mutate(year_imp = list(seq(year))) %>% 
+  ungroup() %>% 
+  unnest(year_imp) %>% 
+  filter(year_imp > 2000 & year_imp < 2021) %>% 
+  filter()
+  
+afrobarometer_mod %>% 
+  mutate(country = str_sub(country_year, 1, -6),
+         year = as.numeric(as.character(str_sub(country_year, -4, -1)))) %>% 
+  filter(country == "Benin") %>% 
+  mutate(previous_year = dplyr::lag(year, n = 1))
+
 
 pfi_mod <- PFI %>% 
   pivot_longer(`2001`:`2021`) %>% 
@@ -232,7 +281,28 @@ pfi_mod <- PFI %>%
   rename(`Press Freedom Index` = value) %>% 
   select(country_year, `Press Freedom Index`) 
          
-
+# v2eltrnout
+# took out: v2elembcap, v2elembcap_osp, v2elpeace_ord, v2elpeace
+vDEM_mod <- vDEM %>% 
+  select(country_name, year, v2elfrfair_osp, v2eltrnout, v2elvaptrn, v2elembcap_ord, 
+         e_peaveduc,v2xel_elecparl, v2xel_elecpres, v2elpeace_osp, v2elintmon) %>% 
+  filter(country_name %in% all_africa_countries) %>% 
+  mutate(country_name = case_when(country_name == "The Gambia" ~ "Gambia",
+                                  country_name == "Ivory Coast" ~ "Cote d'Ivoire",
+                                  TRUE ~ country_name)) %>% 
+  filter(year > 2000) %>% 
+  filter(v2xel_elecparl == 1 | v2xel_elecpres == 1) %>% 
+  mutate(country_year = paste(country_name, year, sep = "-")) %>% 
+  select(!c(country_name, year)) %>% 
+  rename(VDEM.elction_free_fair = v2elfrfair_osp,
+         VDEM.turnout = v2eltrnout,
+         VDEM.VAP_turnout = v2elvaptrn,
+         VDEM.EMB_capacity_ord = v2elembcap_ord,
+         VDEM.yrs_education = e_peaveduc,
+         VDEM.elec_viol = v2elpeace_osp, 
+         VDEM.international_monitors_present = v2elintmon) %>% 
+  relocate(country_year, .before = VDEM.turnout)
+  
   
 
 # to incorporate ECAV would require a lot more work and it's not clear what use it would be, it's just more granualar
@@ -266,16 +336,84 @@ pfi_mod <- PFI %>%
 
 # New Africa country-election merge:
 
-country_elec_list <- list(IAEP.QED, PEI_election_mod, nelda_mod, afrobarometer_mod)
+country_elec_list <- list(IAEP.QED, PEI_election_mod, nelda_mod, vDEM_mod)
 
 merged_datasets2 <- reduce(country_elec_list, full_join) %>% 
   mutate(country = str_sub(country_year, end = -6)) %>% 
   filter(country %in% all_africa_countries) %>% 
-  left_join(polity5_mod) %>% left_join(fh_mod) %>% left_join(africa_WDI) %>% left_join(ciri_mod) %>% left_join(pfi_mod) %>% 
+  left_join(polity5_mod) %>% left_join(fh_mod) %>% left_join(africa_WDI) %>% 
+  left_join(ciri_mod) %>% left_join(pfi_mod) %>% left_join(afrobarometer_mod) %>% 
   relocate(country_year) %>% 
-  arrange(country_year)
+  arrange(country_year) 
 
 write_csv(merged_datasets2, "merged_datasets2.csv")
+
+merged_datasets3 <- merged_datasets2 %>% 
+  select(country_year, electexec, electleg, electboth, v2xel_elecparl, v2xel_elecpres, `AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)`,
+         `PEI.Rating of electoral integrity (1-10)`, VDEM.elction_free_fair, `PEI.Electoral authorities index (0-100), imputed`, VDEM.EMB_capacity_ord,
+         `PEI.Voting results/reactions index (protests/disputes) (0-100), imputed`,
+         `PEI.turnout`, VDEM.turnout, VDEM.VAP_turnout, nelda17, nelda18, nelda11, nelda45, nelda46, nelda3:nelda5, 
+         nelda29:nelda30, POLITY5.fragment:POLITY5.durable, POLITY5.parcomp, FH.fh_total, 
+         `WB.GDP per capita (constant 2015 US$)`, `WB.%pop living in urban`, `WB.adult literacy rate`, VDEM.yrs_education,
+         `Press Freedom Index`, VDEM.elec_viol, VDEM.international_monitors_present) %>% 
+  mutate(country = str_sub(country_year, end = -6),
+         year = as.numeric(as.character(str_sub(country_year, start = -4, end = -1)))) %>% 
+  filter(year >= 2000) %>% 
+  distinct(country_year, .keep_all = TRUE) %>% 
+  mutate(country = as.factor(country),
+         literacy2 = `WB.adult literacy rate`) %>% 
+  group_by(country) %>% 
+  fill(`WB.adult literacy rate`, .direction = "updown") %>% 
+  ungroup() %>% 
+  rename(literacy_imputed = `WB.adult literacy rate`,
+         WB.literacy = literacy2) %>% 
+  mutate(across(.cols = nelda17:nelda30, ~ ifelse(.x == "N/A" | .x == "unclear", NA, .x))) %>% 
+  mutate(across(.cols = nelda17:nelda30, ~ ifelse(.x == "yes", 1, 0))) %>% 
+  mutate(across(.cols = POLITY5.fragment:POLITY5.parcomp, ~ ifelse(.x == -77 | .x == -88, NA, .x))) %>% 
+  relocate(c(country, year), .after = country_year) %>% 
+  relocate(v2xel_elecpres, .after = electboth) %>% 
+  select(!c(WB.literacy)) 
+
+write_csv(merged_datasets3, "merged_datasets3.csv")
+
+
+### OLS analysis on socioeconomic factors
+
+socio_econ_anal <- merged_datasets2 %>% 
+  distinct(country_year, .keep_all = TRUE) %>% 
+  select(country_year, `PEI.Rating of electoral integrity (1-10)`, 
+         `AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)`, 
+         `WB.Gini index`,
+         `WB.GDP per capita (constant 2015 US$)`,
+         `WB.%pop living in urban`,
+         `WB.adult literacy rate`) %>% 
+  mutate(year = str_sub(country_year, -4, -1)) %>% 
+  filter(year > 2000)
+  mutate(AFRO_fuzzy = case_when(!is.na(`AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)`) ~ `AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)`,
+                                ,
+                                TRUE ~ 0))
+
+ggplot(socio_econ_anal) + 
+  geom_point(aes(`WB.GDP per capita (constant 2015 US$)`, `PEI.Rating of electoral integrity (1-10)`))
+
+ggplot(socio_econ_anal) + 
+  geom_point(aes(`WB.GDP per capita (constant 2015 US$)`, `AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)`))
+
+nrow(filter(!is.na(socio_econ_anal$`PEI.Rating of electoral integrity (1-10)`)))
+
+summary(lm(`PEI.Rating of electoral integrity (1-10)` ~ `WB.GDP per capita (constant 2015 US$)`, socio_econ_anal))
+summary(lm(`PEI.Rating of electoral integrity (1-10)` ~ `WB.Gini index`, socio_econ_anal))
+
+summary(lm(`AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)` ~ `WB.Gini index`, socio_econ_anal))
+
+ggplot(socio_econ_anal) + 
+  geom_point(aes(`AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)`, `PEI.Rating of electoral integrity (1-10)`)) +  
+  geom_smooth(aes(`AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)`, `PEI.Rating of electoral integrity (1-10)`),
+                 method = "lm")
+
+summary(lm(`PEI.Rating of electoral integrity (1-10)` ~ `AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)`, socio_econ_anal))
+
+
 
 ## Merge all datasets
 all_iri_country_year_elections <- read_csv("CleanedMergedData/all_iri_country_year_elections.csv")
