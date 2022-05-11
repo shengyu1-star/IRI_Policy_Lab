@@ -20,7 +20,7 @@ iri_countries <- c("Kenya", "Chad", "Somalia", "Sudan", "Nigeria",
                    "Congo Kinshasa", "Congo (Kinshasa)", "Congo, Dem. Rep.")
 iri_countries_ios2 <- countrycode(iri_countries, origin = 'country.name', destination = 'iso2c')
 
-all_africa_countries <- c("Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi", "Cameroon", "Cape Verde",
+all_africa_countries <- c("Algeria", "Angola", "Benin", "Botswana", "Burkina Faso", "Burundi", "Cameroon", "Cape Verde", "Cabo Verde",
                           "Central African Republic", "Chad", "Comoros", "Republic of the Congo", "Congo-Brazzaville", "Congo-Kinshasa", 
                           "Cote d'Ivoire", "Ivory Coast", "Djibouti", "Democratic Republic of the Congo", "Egypt", "Equatorial Guinea", "Eritrea", "Ethiopia", "Gabon", 
                           "Eswatini", "Gambia", "Ghana", "Guinea", "Guinea Bissau", "Guinea-Bissau", "Kenya", "Lesotho", "Liberia", "Libya", "Madagascar", 
@@ -58,7 +58,7 @@ iri_WDI <- WDI(country = iri_countries_ios2, indicator = c("NY.GDP.PCAP.KD",
                                                            "FP.CPI.TOTL.ZG",
                                                            "SI.POV.GINI",
                                                            "SP.URB.TOTL.IN.ZS"))
-africa_WDI <- WDI(country = all_africa_countries_ios2, indicator = c("NY.GDP.PCAP.KD", 
+africa_WDI_raw <- WDI(country = all_africa_countries_ios2, indicator = c("NY.GDP.PCAP.KD", 
                                                               "BX.KLT.DINV.CD.WD",
                                                               "FP.CPI.TOTL.ZG",
                                                               "SI.POV.GINI",
@@ -217,14 +217,20 @@ iri_WDI <- iri_WDI %>%
   select(!c(iso2c, country, year)) %>% 
   rename_with(!country_year, .fn = ~ paste0("WB.", .x))
 
-africa_WDI <- africa_WDI %>% 
+africa_WDI <- africa_WDI_raw %>% 
   rename("GDP per capita (constant 2015 US$)" = "NY.GDP.PCAP.KD",
          "Foreign direct investment, net inflows (BoP, current US$" = "BX.KLT.DINV.CD.WD",
          "Inflation, consumer prices (annual %)" = "FP.CPI.TOTL.ZG",
          "Gini index" = "SI.POV.GINI",
          "%pop living in urban" = "SP.URB.TOTL.IN.ZS",
          "adult literacy rate" = "SE.ADT.LITR.ZS") %>%
-  mutate(country = ifelse(country == "Congo, Dem. Rep.", "Congo", country),
+  group_by(country) %>% 
+  fill(`adult literacy rate`, .direction = "updown") %>% 
+  ungroup() %>% 
+  mutate(country = case_when(country == "Congo, Dem. Rep." ~ "Congo",
+                             country == "Egypt, Arab Rep." ~ "Egypt",
+                             country == "Cabo Verde" ~ "Cape Verde",
+                             TRUE ~ country),
          country_year = paste(country, year, sep = "-")) %>% 
   select(!c(iso2c, country, year)) %>% 
   rename_with(!country_year, .fn = ~ paste0("WB.", .x))
