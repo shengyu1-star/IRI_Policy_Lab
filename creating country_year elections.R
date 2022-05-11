@@ -7,6 +7,7 @@ library(countrycode)
 library(naniar)
 library(readxl)
 library(acled.api) # my key: hIZ0Z3n5e4IenWorw5we
+library(gridExtra)
 
 #fh <- download_fh(verbose = FALSE) #uncomment these for first time running program
 #polity5 <- download_polity_annual(verbose = FALSE)
@@ -290,8 +291,9 @@ pfi_mod <- PFI %>%
 # v2eltrnout
 # took out: v2elembcap, v2elembcap_osp, v2elpeace_ord, v2elpeace
 vDEM_mod <- vDEM %>% 
-  select(country_name, year, v2elfrfair_osp, v2eltrnout, v2elvaptrn, v2elembcap_osp, 
-         e_peaveduc,v2xel_elecparl, v2xel_elecpres, v2elpeace_osp, v2elintmon) %>% 
+  select(country_name, year, v2elfrfair_osp, v2eltrnout, v2elvaptrn, v2elembcap_osp, v2elembcap_ord,
+         e_peaveduc,v2xel_elecparl, v2xel_elecpres, v2elpeace_osp, v2elintmon, 
+         v2peapspol, v2peapssoc, v2regsupgroups_6, v2regimpgroup, v2regpower) %>% 
   filter(country_name %in% all_africa_countries) %>% 
   mutate(country_name = case_when(country_name == "The Gambia" ~ "Gambia",
                                   country_name == "Ivory Coast" ~ "Cote d'Ivoire",
@@ -305,10 +307,19 @@ vDEM_mod <- vDEM %>%
          VDEM.turnout = v2eltrnout,
          VDEM.VAP_turnout = v2elvaptrn,
          VDEM.EMB_capacity_osp = v2elembcap_osp,
+         VDEM.EMB_capacity_ord = v2elembcap_ord,
          VDEM.yrs_education = e_peaveduc,
          VDEM.elec_viol = v2elpeace_osp, 
-         VDEM.international_monitors_present = v2elintmon) %>% 
-  relocate(country_year, .before = VDEM.turnout)
+         VDEM.international_monitors_present = v2elintmon,
+         VDEM.access_to_public_services_social_group = v2peapssoc,
+         VDEM.access_to_public_services_pol_group = v2peapspol,
+         VDEM.regime_support_by_an_ethnic_group = v2regsupgroups_6) %>% 
+  mutate(VDEM.is_an_ethnic_group_the_most_powerful_regime_duration_group = case_when(v2regpower == 6 ~ 1,
+                                                                     TRUE ~ 0),
+         VDEM.is_an_ethnic_group_the_most_powerful_regime_support_group = case_when(v2regimpgroup == 6 ~ 1,
+                                                                                     TRUE ~ 0)) %>% 
+  relocate(country_year, .before = VDEM.turnout) %>% 
+  select(!v2regpower)
   
   
 
@@ -357,12 +368,13 @@ write_csv(merged_datasets2, "merged_datasets2.csv")
 
 merged_datasets3 <- merged_datasets2 %>% 
   select(country_year, electexec, electleg, electboth, v2xel_elecparl, v2xel_elecpres, `AFROBAR.Election Integrity (10=free/fair, 0=unfree/unfair)`,
-         `PEI.Rating of electoral integrity (1-10)`, VDEM.elction_free_fair, `PEI.Electoral authorities index (0-100), imputed`, VDEM.EMB_capacity_osp,
+         `PEI.Rating of electoral integrity (1-10)`, VDEM.elction_free_fair, `PEI.Electoral authorities index (0-100), imputed`, VDEM.EMB_capacity_osp, VDEM.EMB_capacity_ord,
          `PEI.Voting results/reactions index (protests/disputes) (0-100), imputed`,
          `PEI.turnout`, VDEM.turnout, VDEM.VAP_turnout, nelda17, nelda18, nelda11, nelda45, nelda46, nelda3:nelda5, 
          nelda29:nelda30, POLITY5.fragment:POLITY5.durable, POLITY5.parcomp, FH.fh_total, 
          `WB.GDP per capita (constant 2015 US$)`, `WB.%pop living in urban`, `WB.adult literacy rate`, VDEM.yrs_education,
-         `Press Freedom Index`, VDEM.elec_viol, VDEM.international_monitors_present) %>% 
+         `Press Freedom Index`, VDEM.elec_viol, VDEM.international_monitors_present, VDEM.access_to_public_services_social_group, VDEM.access_to_public_services_pol_group,
+         VDEM.regime_support_by_an_ethnic_group, VDEM.is_an_ethnic_group_the_most_powerful_regime_support_group, VDEM.is_an_ethnic_group_the_most_powerful_regime_duration_group) %>% 
   mutate(country = str_sub(country_year, end = -6),
          year = as.numeric(as.character(str_sub(country_year, start = -4, end = -1)))) %>% 
   filter(year >= 2000) %>% 
@@ -383,6 +395,27 @@ merged_datasets3 <- merged_datasets2 %>%
 
 write_csv(merged_datasets3, "merged_datasets3.csv")
 
+# doing percent complete for merged3
+perc_complete <- bind_rows(map(merged_datasets3, ~mean(is.na(.))))
+perc_complete <- perc_complete %>% 
+  pivot_longer(cols = everything()) %>% 
+  mutate(`%complete` = 1 - value)
+
+perc_complete %>% write_csv("CleanedMergedData/perc_complete.csv")
+
+
+# comparing ord vs osp
+# `PEI.Electoral authorities index (0-100), imputed`, VDEM.EMB_capacity_osp, VDEM.EMB_capacity_ord
+p_osp <- ggplot(merged_datasets3) + 
+  geom_point(aes(`PEI.Electoral authorities index (0-100), imputed`, VDEM.EMB_capacity_osp))
+
+p_ord <- ggplot(merged_datasets3) + 
+  geom_point(aes(`PEI.Electoral authorities index (0-100), imputed`, VDEM.EMB_capacity_ord))
+
+summary(lm(VDEM.EMB_capacity_osp ~ `PEI.Electoral authorities index (0-100), imputed`, merged_datasets3))
+summary(lm(VDEM.EMB_capacity_ord ~ `PEI.Electoral authorities index (0-100), imputed`, merged_datasets3))
+
+grid.arrange(p_osp, p_ord, ncol=2)
 
 ### OLS analysis on socioeconomic factors
 
@@ -500,13 +533,13 @@ merged_datasets_reconciled <- merged_datasets_raw %>%
 
 merged_datasets_reconciled %>% write_csv("CleanedMergedData/merged_datasets_reconciled.csv")
 
-## Trying to figure out what coverage percentage of coverage each column has
-perc_complete <- bind_rows(map(merged_datasets_reconciled, ~mean(is.na(.))))
-perc_complete <- perc_complete %>% 
-  pivot_longer(cols = everything()) %>% 
-  mutate(`%complete` = 1 - value)
-
-perc_complete %>% write_csv("CleanedMergedData/perc_complete.csv")
+# ## Trying to figure out what coverage percentage of coverage each column has
+# perc_complete <- bind_rows(map(merged_datasets_reconciled, ~mean(is.na(.))))
+# perc_complete <- perc_complete %>% 
+#   pivot_longer(cols = everything()) %>% 
+#   mutate(`%complete` = 1 - value)
+# 
+# perc_complete %>% write_csv("CleanedMergedData/perc_complete.csv")
 
 
 ########### Try #3 to fix this stupid thing

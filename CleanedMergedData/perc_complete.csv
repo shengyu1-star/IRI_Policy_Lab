@@ -39,3 +39,8 @@ VDEM.yrs_education,0.2168284789644013,0.7831715210355987
 Press Freedom Index,0.3042071197411003,0.6957928802588997
 VDEM.elec_viol,0.08414239482200647,0.9158576051779935
 VDEM.international_monitors_present,0.09385113268608414,0.9061488673139159
+VDEM.access_to_public_services_social_group,0.08414239482200647,0.9158576051779935
+VDEM.access_to_public_services_pol_group,0.08414239482200647,0.9158576051779935
+VDEM.regime_support_by_an_ethnic_group,0.13915857605177995,0.86084142394822
+VDEM.is_an_ethnic_group_the_most_powerful_regime_support_group,0.08414239482200647,0.9158576051779935
+VDEM.is_an_ethnic_group_the_most_powerful_regime_duration_group,0.08414239482200647,0.9158576051779935
