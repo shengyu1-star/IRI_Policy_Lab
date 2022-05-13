@@ -9,3 +9,7 @@
 .DS_Store
 .DS_Store
 Raw data/V-Dem-CY-Full+Others-v12.csv
+regression tables.Rmd
+regression-tables.html
+regression-tables.log
+regression-tables.pdf
