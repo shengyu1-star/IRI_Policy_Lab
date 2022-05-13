@@ -1,0 +1,79 @@
+---
+title: "make your own model"
+author: "Sean McSweeney"
+date: "5/13/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(stargazer)
+```
+
+
+```{r}
+merged_datasets3 <- read_csv("merged_datasets3.csv")
+```
+
+Select your variables from this list or the column "Variable name in merged dataset" here: https://docs.google.com/spreadsheets/d/1MaU9bN7A-z4ad3tN6zAC5iyVheZaKIyV/edit#gid=301120215 
+
+ [1] "country_year"                                                   
+ [2] "country"                                                        
+ [3] "year"                                                           
+ [4] "electexec"                                                      
+ [5] "electleg"                                                       
+ [6] "electboth"                                                      
+ [7] "v2xel_elecpres"                                                 
+ [8] "v2xel_elecparl"                                                 
+ [9] "AF.el_rating"                                                   
+[10] "PEI.el_rating"                                                  
+[11] "VDEM.el_rating"                                                 
+[12] "PEI.EMB_cap"                                                    
+[13] "VDEM.EMB_cap"                                                   
+[14] "PEI.protest"                                                    
+[15] "VDEM.turnout"                                                   
+[16] "VDEM.VAP_turnout"                                               
+[17] "nelda17"                                                        
+[18] "nelda18"                                                        
+[19] "nelda11"                                                        
+[20] "nelda45"                                                        
+[21] "nelda46"                                                        
+[22] "nelda3"                                                         
+[23] "nelda4"                                                         
+[24] "nelda5"                                                         
+[25] "nelda29"                                                        
+[26] "nelda30"                                                        
+[27] "POLITY5.fragment"                                               
+[28] "POLITY5.polity2"                                                
+[29] "POLITY5.durable"                                                
+[30] "POLITY5.parcomp"                                                
+[31] "FH.fh_total"                                                    
+[32] "WB.GDP_ppc"                                                     
+[33] "WB.FDI"                                                         
+[34] "WB.inflation"                                                   
+[35] "WB.gini"                                                        
+[36] "WB.urban_pop"                                                   
+[37] "literacy_imputed"                                               
+[38] "VDEM.yrs_education"                                             
+[39] "press_freedom"                                                  
+[40] "VDEM.elec_viol"                                                 
+[41] "VDEM.international_monitors_present"                            
+[42] "VDEM.access_to_public_services_social_group"                    
+[43] "VDEM.access_to_public_services_pol_group"                       
+[44] "VDEM.regime_support_by_an_ethnic_group"                         
+[45] "VDEM.is_an_ethnic_group_the_most_powerful_regime_support_group" 
+[46] "VDEM.is_an_ethnic_group_the_most_powerful_regime_duration_group"
+
+
+```{r, results='asis'}
+#example regression of press freedom on election integrity perception
+# knit as PDF to get a nice regression table
+lm1 <- lm(VDEM.el_rating ~ press_freedom, data = merged_datasets3)
+
+stargazer(lm1)
+```
+
