@@ -16,7 +16,7 @@ library(stargazer)
 
 
 ```{r}
-merged_datasets3 <- read_csv("merged_datasets3.csv")
+merged_datasets3 <- read_csv("https://raw.githubusercontent.com/shengyu1-star/IRI_Policy_Lab/main/merged_datasets3.csv")
 ```
 
 Select your variables from this list or the column "Variable name in merged dataset" here: https://docs.google.com/spreadsheets/d/1MaU9bN7A-z4ad3tN6zAC5iyVheZaKIyV/edit#gid=301120215 
