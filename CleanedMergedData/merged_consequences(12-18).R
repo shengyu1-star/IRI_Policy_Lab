@@ -139,7 +139,7 @@ merged_3 <- select(merged_3, -c(Electiondate))
 
 
 merged_consequences <- dcast(merged_3, country_year+country+year~combined+variable, fun.aggregate = sum)
-write.csv(merged_consequences, "merged_consequences(12-18)")
+write.csv(merged_consequences, "merged_consequences(12-18).csv")
 
 
 
