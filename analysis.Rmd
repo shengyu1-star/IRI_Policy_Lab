@@ -47,7 +47,11 @@ perc_complete <- perc_complete %>%
 
 perc_complete %>% write_csv("CleanedMergedData/perc_complete.csv")
 
+<<<<<<< Updated upstream
 stargazer(perc_complete, summary = FALSE, rownames = FALSE, float = FALSE, type = "text")
+=======
+stargazer(perc_complete, summary = FALSE, rownames = FALSE, float = FALSE)
+>>>>>>> Stashed changes
 ```
 
 

@@ -396,6 +396,7 @@ merged_datasets3 <- merged_datasets2 %>%
 
 write_csv(merged_datasets3, "merged_datasets3.csv")
 
+<<<<<<< Updated upstream
 
 # ACLED data
 acled <- read_excel("Raw data/Africa_1997-2022_May06.xlsx")
@@ -403,3 +404,5 @@ acled <- read_excel("Raw data/Africa_1997-2022_May06.xlsx")
 acled_mod <- acled %>% 
   filter(COUNTRY %in% all_africa_countries) %>% 
   filter(YEAR > 2000)
+=======
+>>>>>>> Stashed changes
